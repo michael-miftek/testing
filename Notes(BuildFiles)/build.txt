@@ -1,0 +1,10 @@
+mkdir build
+cd build
+cmake ..
+cmake --build .
+mkdir Release
+cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake --build . --config Release
+
+
+copy files from Release to gproto and then get files from cytospectrum/bin/ftd/x64 grab files and copy to gpropto/toolkit
