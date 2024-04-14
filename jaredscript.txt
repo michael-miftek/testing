@@ -1,0 +1,10 @@
+echo off
+REM - put your file location here
+
+set KILL=c:\users\jared\source\repos\granite_repo\granite\granite01\killpython.bat
+set LOC=c:\users\jared\source\repos\granite_repo\granite\granite01
+set VENV=c:\users\jared\source\repos\gproto_1_3\gproto\venv\Scripts\activate
+
+%KILL%
+%VENV%
+CD %LOC%
