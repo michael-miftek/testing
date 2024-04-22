@@ -18,7 +18,7 @@ def worker_socket(context, poller):
     identity = b"%04X-%04X" % (randint(0, 0x10000), randint(0, 0x10000))
     worker.setsockopt(zmq.IDENTITY, identity)
     poller.register(worker, zmq.POLLIN)
-    worker.connect("tcp://192.168.1.104:5556")
+    worker.connect("tcp://192.168.50.169:5556")     #balrogs current ip address
     worker.send(PPP_READY)
     return worker
 
