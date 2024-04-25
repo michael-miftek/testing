@@ -1,0 +1,70 @@
+diff --git a/granite01/controlplane/photonview.py b/granite01/controlplane/photonview.py
+index f262e13..e3a5960 100644
+--- a/granite01/controlplane/photonview.py
++++ b/granite01/controlplane/photonview.py
+@@ -122,10 +122,12 @@ class PhotonView(QtWidgets.QWidget):
+         self.eq_window.setFloating(True)
+         self.eq_window.hide()
+ 
+-        self.equalizer = EqualizerBar(12,10)
++        self.equalizer = EqualizerBar(12,50)
+         self.equalizer.setRange(0,5000)
+         self.equalizer.setColors(["#ff0000", "#ff3300", "#ff6600", "#ff9900", "#ffcc00", "#ffff00", "#ccff00", "#99ff00", 
+                                   "#66ff00", "#33ff00", "#00FF00"])
++        self.equalizer.setDecay(5000/50)
++        self.equalizer.setDecayFrequencyMs(50)
+         
+         self.eq_window.setWidget(self.equalizer)
+ 
+diff --git a/granite01/ui/equalizer_bar.py b/granite01/ui/equalizer_bar.py
+index 2cdb7ff..4be2f05 100644
+--- a/granite01/ui/equalizer_bar.py
++++ b/granite01/ui/equalizer_bar.py
+@@ -47,6 +47,7 @@ class EqualizerBar(QtWidgets.QWidget):
+ 
+         # Current values are stored in a list.
+         self._values = [0.0] * bars
++        self._oldmax = [0.0] * bars
+ 
+ 
+     def paintEvent(self, e):
+@@ -86,6 +87,22 @@ class EqualizerBar(QtWidgets.QWidget):
+                     bar_height
+                 )
+                 painter.fillRect(rect, brush)
++                
++            # Intensity max
++            pc = (self._oldmax[b] - self._vmin) / (self._vmax - self._vmin)
++            n_steps_to_draw = min(int(pc * self.n_steps) + 1, self.n_steps)
++            
++
++            # for n in range(n_steps_to_draw):
++            # brush.setColor(QtGui.QColor(self.steps[n_steps_to_draw]))
++            brush.setColor(QtGui.QColor(0,0,255))
++            rect = QtCore.QRectF(
++                self._padding + (step_x * b) + bar_width_space,
++                self._padding + d_height - ((1 + n_steps_to_draw) * step_y) + bar_height_space,
++                bar_width,
++                (bar_height/2)
++            )
++            painter.fillRect(rect, brush)
+ 
+         painter.end()
+ 
+@@ -113,10 +130,16 @@ class EqualizerBar(QtWidgets.QWidget):
+             max(0, v - self._decay)
+             for v in self._values
+         ]
++        self._oldmax = [
++            max(0, v - self._decay)
++            for v in self._oldmax
++        ]
+         self.update()  # Redraw new position.
+ 
+     def setValues(self, v):
+         self._values = v
++        for n in range(len(v)):
++            self._oldmax[n] = max(self._oldmax[n], v[n])
+         self.update()
+ 
+     def values(self):
