@@ -123,6 +123,8 @@ def pool_task():
         
     print(f"exiting pool_task {p}")
 
+    
+
 if __name__ == "__main__":
     threshold = 75
     interval = 1
