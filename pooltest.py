@@ -48,90 +48,90 @@
 #     p.join()
 
 
-import os
-import psutil
-import time
-import multiprocessing
-from multiprocessing import Process, pool
-import random
+# import os
+# import psutil
+# import time
+# import multiprocessing
+# from multiprocessing import Process, pool
+# import random
 
-listIn = [int(0) for i in range(10000000)]
-p = pool.ThreadPool(5)
-CLOSE = False
+# listIn = [int(0) for i in range(10000000)]
+# p = pool.ThreadPool(5)
+# CLOSE = False
 
-def cpu_intensive_task(opt):
-    # Simulate a CPU-intensive task
-    # total = 0
-    # print("in intensive task")
-    # for i in range(len(opt)):
-    opt += 1
+# def cpu_intensive_task(opt):
+#     # Simulate a CPU-intensive task
+#     # total = 0
+#     # print("in intensive task")
+#     # for i in range(len(opt)):
+#     opt += 1
 
-    # for i in range(1, 10000000):
-    #     total += (i * random.randint(0,999))
-    # return total
+#     # for i in range(1, 10000000):
+#     #     total += (i * random.randint(0,999))
+#     # return total
 
-def monitor_process(inputPID, threshold, interval):
-# def monitor_process(threshold: int, interval: int):
-    print("in process")
-    print(f"os_pid: {os.getpid()}")
-    process = psutil.Process(inputPID)
+# def monitor_process(inputPID, threshold, interval):
+# # def monitor_process(threshold: int, interval: int):
+#     print("in process")
+#     print(f"os_pid: {os.getpid()}")
+#     process = psutil.Process(inputPID)
 
-    # print("Ignore this")
-    # Monitor the process for CPU usage
-    while True:
-        cpu_usage = process.cpu_percent(interval=interval)
-        print(f"CPU usage: {cpu_usage}%")
-        if cpu_usage > threshold:
-            print("CPU usage threshold exceeded. Spawning a child process...")
-            spawn_child_process()
-            break
-        time.sleep(interval)
-    # pass
+#     # print("Ignore this")
+#     # Monitor the process for CPU usage
+#     while True:
+#         cpu_usage = process.cpu_percent(interval=interval)
+#         print(f"CPU usage: {cpu_usage}%")
+#         if cpu_usage > threshold:
+#             print("CPU usage threshold exceeded. Spawning a child process...")
+#             spawn_child_process()
+#             break
+#         time.sleep(interval)
+#     # pass
 
-def spawn_child_process():
-    # Define the function for the child process
-    print("in child process")
+# def spawn_child_process():
+#     # Define the function for the child process
+#     print("in child process")
 
-    def child_task():
-        print("Child process started")
-        cpu_intensive_task()
-        print("Child process finished")
+#     def child_task():
+#         print("Child process started")
+#         cpu_intensive_task()
+#         print("Child process finished")
 
-    # Create and start a child process
-    print("creating child process")
-    child_process = multiprocessing.Process(target=child_task)
-    print("created child process")
+#     # Create and start a child process
+#     print("creating child process")
+#     child_process = multiprocessing.Process(target=child_task)
+#     print("created child process")
 
-    child_process.start()
-    # child_process.join()
+#     child_process.start()
+#     # child_process.join()
 
-def pool_task():
-    global p
-    global listIn
-    print(f"p in task: {p}")
-    x = 0
-    while(True):
-        if x > 5:
-            p.close()
-            p.terminate()
-            p.join()
-            print("closing")
-            break
-        print(f"pid check: {psutil.Process()}, CLOSE: {x}")
-        p.map(cpu_intensive_task, listIn)
-        x+=1
+# def pool_task():
+#     global p
+#     global listIn
+#     print(f"p in task: {p}")
+#     x = 0
+#     while(True):
+#         if x > 5:
+#             p.close()
+#             p.terminate()
+#             p.join()
+#             print("closing")
+#             break
+#         print(f"pid check: {psutil.Process()}, CLOSE: {x}")
+#         p.map(cpu_intensive_task, listIn)
+#         x+=1
         
-    print(f"exiting pool_task {p}")
+#     print(f"exiting pool_task {p}")
 
     
 
-if __name__ == "__main__":
-    threshold = 75
-    interval = 1
+# if __name__ == "__main__":
+#     threshold = 75
+#     interval = 1
 
-    # Get the current process
-    current_process = psutil.Process().pid
-    print(f"process: {current_process}")
+#     # Get the current process
+#     current_process = psutil.Process().pid
+#     print(f"process: {current_process}")
 
     # monitor_process(current_process, threshold)
     # Start the monitoring in a separate process to avoid blocking
@@ -145,19 +145,19 @@ if __name__ == "__main__":
 
     # Run the main CPU intensive task
     # p = pool.ThreadPool(5)
-    print(f"p in main: {p}")
-    pool_process = multiprocessing.Process(target=pool_task)
-    print("Starting process")
-    pool_process.start()
+    # print(f"p in main: {p}")
+    # pool_process = multiprocessing.Process(target=pool_task)
+    # print("Starting process")
+    # pool_process.start()
 
-    print("Sleeping")
-    time.sleep(10)
+    # print("Sleeping")
+    # time.sleep(10)
 
-    print("Waking")
-    # p.close()
-    # p.terminate()
-    # p.join()
-    print(f"first: {listIn[0]} last: {listIn[-1]}") #-> this should not change since it is just a global var
+    # print("Waking")
+    # # p.close()
+    # # p.terminate()
+    # # p.join()
+    # print(f"first: {listIn[0]} last: {listIn[-1]}") #-> this should not change since it is just a global var
     # p.close()
     
     # with pool.ThreadPool(5) as p:
@@ -168,3 +168,70 @@ if __name__ == "__main__":
 
     # Ensure the monitoring process finishes
     # monitoring_process.join()
+
+
+import logging
+import random
+import sys
+import time
+
+from PyQt6 import QtCore, QtGui, QtWidgets
+from PyQt6.QtCore import QRunnable, Qt, QThreadPool
+from PyQt6.QtWidgets import (
+    QApplication,
+    QLabel,
+    QMainWindow,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
+logging.basicConfig(format="%(message)s", level=logging.INFO)
+
+# 1. Subclass QRunnable
+class Runnable(QRunnable):
+    def __init__(self, n):
+        super().__init__()
+        self.n = n
+
+    def run(self):
+        # Your long-running task goes here ...
+        for i in range(5):
+            logging.info(f"Working in thread {self.n}, step {i + 1}/5")
+            time.sleep(random.randint(700, 2500) / 1000)
+
+class Window(QMainWindow):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setupUi()
+
+    def setupUi(self):
+        self.setWindowTitle("QThreadPool + QRunnable")
+        self.resize(250, 150)
+        self.centralWidget = QWidget()
+        self.setCentralWidget(self.centralWidget)
+        # Create and connect widgets
+        self.label = QLabel("Hello, World!")
+        self.label.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        countBtn = QPushButton("Click me!")
+        countBtn.clicked.connect(self.runTasks)
+        # Set the layout
+        layout = QVBoxLayout()
+        layout.addWidget(self.label)
+        layout.addWidget(countBtn)
+        self.centralWidget.setLayout(layout)
+
+    def runTasks(self):
+        threadCount = QThreadPool.globalInstance().maxThreadCount()
+        self.label.setText(f"Running {threadCount} Threads")
+        pool = QThreadPool.globalInstance()
+        for i in range(threadCount):
+            # 2. Instantiate the subclass of QRunnable
+            runnable = Runnable(i)
+            # 3. Call start()
+            pool.start(runnable)
+
+app = QApplication(sys.argv)
+window = Window()
+window.show()
+sys.exit(app.exec())
