@@ -20,15 +20,13 @@ points = {
     'adc_width': [84, 4, 7, 8, 5, 4, 28, 193, 12, 7, 5, 4], 
     'count_total': [2739, 9, 202, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
 
-docs = [points for x in range(10)]
-
-
-
 # mydict = { "name": "John", "address": "Highway 37" }
 # mdict = { "name": "John", "address": "Highway 37" }
+
 timearr =[]
 start = time.time()
 #70k inserts for each item (4 items total)
+print("Starting 70k writes one at time for 4 collections")
 for t in range(70000):
     startloop = time.time()
     _ = mydb.adc_peak.insert_one({f'{t}' : f'{points['adc_peak']}'})    
@@ -38,34 +36,52 @@ for t in range(70000):
     endloop = time.time()
     timearr.append(endloop-startloop)
 end = time.time()
-print(f"time elapsed for four insert_one at {t} events: {end - start}")
+print(f"time elapsed for four insert_one at {t} documents: {end - start}")
 print(f"mean time: {tmean(timearr)}")
 print(f"var time: {variation(timearr)}")
 
-peak.drop_indexes()
-area.drop_indexes()
-width.drop_indexes()
-cttot.drop_indexes()
+peak.delete_many({})
+area.delete_many({})
+width.delete_many({})
+cttot.delete_many({})
 
 #4 inserts of 70k items
+print("Starting 4 writes of 70 documents for 4 collections")
 start=time.time()
 _ = mydb.adc_peak.insert_many({f'{t}' : f'{points['adc_peak']}'} for t in range(70000))    
 _ = mydb.adc_area.insert_many({f'{t}' : f'{points['adc_area']}'} for t in range(70000))    
 _ = mydb.adc_width.insert_many({f'{t}' : f'{points['adc_width']}'} for t in range(70000))    
 _ = mydb.photon_total.insert_many({f'{t}' : f'{points['count_total']}'} for t in range(70000))    
 end=time.time()
-print(f"time elapsed for four insert_many at {t} events: {end - start}")
+print(f"time elapsed for four insert_many at 70k documents: {end - start}")
 
-peak.drop_indexes()
-area.drop_indexes()
-width.drop_indexes()
-cttot.drop_indexes()
+peak.delete_many({})
+area.delete_many({})
+width.delete_many({})
+cttot.delete_many({})
 
 #1 insert of 280k items
+print("Starting 1 write of 280k documents at one time")
 start=time.time()
 _ = mydb.adc_peak.insert_many({f'{t}' : f'{points['adc_peak']}'} for t in range(280000))    
 end=time.time()
-print(f"time elapsed for four insert_many at {t} events: {end - start}")
+print(f"time elapsed for one insert_many at 280k documents: {end - start}")
+
+peak.delete_many({})
+
+
+"""
+Starting 70k writes one at time for 4 collections
+time elapsed for four insert_one at 69999 documents: 104.87938237190247
+mean time: 0.0014974398715155465
+var time: 0.6946593102757995
+
+Starting 4 writes of 70 documents for 4 collections
+time elapsed for four insert_many at 70k documents: 4.919207811355591
+
+Starting 1 write of 280k documents at one time
+time elapsed for one insert_many at 280k documents: 5.5388078689575195
+"""
 
 # x = mycol.insert_one({ "name": "John", "address": "Highway 37" })
 # print(x.inserted_id)
@@ -78,11 +94,13 @@ print(f"time elapsed for four insert_many at {t} events: {end - start}")
 # collist = mydb.list_collection_names()
 # if "customers" in collist:
 #     print("The collection exists.")
+# mycol.delete_many({})
 
 # print(f"mean: {tmean(timearr)}")
 # print(f"var: {variation(timearr)}")
 
 time.sleep(60)
+# mydb.drop_collection(mycol)
 mydb.drop_collection(peak)
 mydb.drop_collection(area)
 mydb.drop_collection(width)
