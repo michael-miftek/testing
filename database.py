@@ -28,7 +28,7 @@ docs = [points for x in range(10)]
 # mdict = { "name": "John", "address": "Highway 37" }
 timearr =[]
 start = time.time()
-#70k inserts
+#70k inserts for each item (4 items total)
 for t in range(70000):
     startloop = time.time()
     _ = mydb.adc_peak.insert_one({f'{t}' : f'{points['adc_peak']}'})    
@@ -47,6 +47,7 @@ area.drop_indexes()
 width.drop_indexes()
 cttot.drop_indexes()
 
+#4 inserts of 70k items
 start=time.time()
 _ = mydb.adc_peak.insert_many({f'{t}' : f'{points['adc_peak']}'} for t in range(70000))    
 _ = mydb.adc_area.insert_many({f'{t}' : f'{points['adc_area']}'} for t in range(70000))    
@@ -60,6 +61,7 @@ area.drop_indexes()
 width.drop_indexes()
 cttot.drop_indexes()
 
+#1 insert of 280k items
 start=time.time()
 _ = mydb.adc_peak.insert_many({f'{t}' : f'{points['adc_peak']}'} for t in range(280000))    
 end=time.time()
