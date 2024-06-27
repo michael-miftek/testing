@@ -12,10 +12,7 @@ try:
     cttot = mydb.create_collection("photon_total")
 except:
     pass
-# peak = mydb["adc_peak"]
-# area = mydb["adc_area"]
-# width = mydb["adc_width"]
-# cttot = mydb["photon total"]
+
 
 points = {
     'adc_peak': [47103.0, 33995.0, 35008.0, 36028.0, 35592.0, 34896.0, 50403.0, 36451.0, 33803.0, 34923.0, 34888.0, 34913.0], 
@@ -32,40 +29,42 @@ docs = [points for x in range(10)]
 timearr =[]
 start = time.time()
 #70k inserts
-# for t in range(500):
-#     startloop = time.time()
-#     _ = mydb.adc_peak.insert_one({f'{t}' : f'{points['adc_peak']}'})    
-#     _ = mydb.adc_area.insert_one({f'{t}' : f'{points['adc_area']}'})    
-#     _ = mydb.adc_width.insert_one({f'{t}' : f'{points['adc_width']}'})    
-#     _ = mydb.photon_total.insert_one({f'{t}' : f'{points['count_total']}'})    
-#     endloop = time.time()
-#     timearr.append(endloop-startloop)
-
-# _ = mydb.adc_peak.insert_many({f'{t}' : f'{points['adc_peak']}'} for t in range(70000))    
-# _ = mydb.adc_area.insert_many({f'{t}' : f'{points['adc_area']}'} for t in range(3500))    
-# _ = mydb.adc_width.insert_many({f'{t}' : f'{points['adc_width']}'} for t in range(3500))    
-# _ = mydb.photon_total.insert_many({f'{t}' : f'{points['count_total']}'} for t in range(3500))    
-# _ = mydb.adc_peak.bulk_write({f'{t}' : f'{points['adc_peak']}'} for t in range(70000))
-
-
-
-# from pymongo import InsertOne, DeleteOne, ReplaceOne
-# from pymongo.errors import BulkWriteError
-
-# # docs = [... input documents ]
-# requests = []
-# for i, doc in enumerate(docs):
-#     requests.append({
-#        ReplaceOne({"docId": f'{i}'}, doc, True)
-#    })
-
-# try:
-#     mydb.docs.bulk_write(requests, ordered=False)
-# except BulkWriteError as bwe:
-#     print(bwe.details)
-
-
+for t in range(70000):
+    startloop = time.time()
+    _ = mydb.adc_peak.insert_one({f'{t}' : f'{points['adc_peak']}'})    
+    _ = mydb.adc_area.insert_one({f'{t}' : f'{points['adc_area']}'})    
+    _ = mydb.adc_width.insert_one({f'{t}' : f'{points['adc_width']}'})    
+    _ = mydb.photon_total.insert_one({f'{t}' : f'{points['count_total']}'})    
+    endloop = time.time()
+    timearr.append(endloop-startloop)
 end = time.time()
+print(f"time elapsed for four insert_one at {t} events: {end - start}")
+print(f"mean time: {tmean(timearr)}")
+print(f"var time: {variation(timearr)}")
+
+peak.drop_indexes()
+area.drop_indexes()
+width.drop_indexes()
+cttot.drop_indexes()
+
+start=time.time()
+_ = mydb.adc_peak.insert_many({f'{t}' : f'{points['adc_peak']}'} for t in range(70000))    
+_ = mydb.adc_area.insert_many({f'{t}' : f'{points['adc_area']}'} for t in range(70000))    
+_ = mydb.adc_width.insert_many({f'{t}' : f'{points['adc_width']}'} for t in range(70000))    
+_ = mydb.photon_total.insert_many({f'{t}' : f'{points['count_total']}'} for t in range(70000))    
+end=time.time()
+print(f"time elapsed for four insert_many at {t} events: {end - start}")
+
+peak.drop_indexes()
+area.drop_indexes()
+width.drop_indexes()
+cttot.drop_indexes()
+
+start=time.time()
+_ = mydb.adc_peak.insert_many({f'{t}' : f'{points['adc_peak']}'} for t in range(280000))    
+end=time.time()
+print(f"time elapsed for four insert_many at {t} events: {end - start}")
+
 # x = mycol.insert_one({ "name": "John", "address": "Highway 37" })
 # print(x.inserted_id)
 
@@ -77,7 +76,6 @@ end = time.time()
 # collist = mydb.list_collection_names()
 # if "customers" in collist:
 #     print("The collection exists.")
-print(f"time elapsed for 500 events: {end- start}")
 
 # print(f"mean: {tmean(timearr)}")
 # print(f"var: {variation(timearr)}")
