@@ -21,12 +21,17 @@ points = {
 
 
 
-for t in range(1):
-# for t in range(60000):
-    _ = mydb.adc_peak.insert_one({f'{t}' : points['adc_peak']})    
-    _ = mydb.adc_area.insert_one({f'{t}' : points['adc_area']})    
-    _ = mydb.adc_width.insert_one({f'{t}' : points['adc_width']})    
-    _ = mydb.photon_total.insert_one({f'{t}' : points['count_total']})
+def enter(total_runs):
+    peak_cursor = peak.find()
+    #NOTE: This is the idea of how everything will get updated
+    start = time.time()
+
+    peak.update_many(
+        { },
+        {'$set': {'0': peak_cursor[0][f'{0}'] + points['adc_peak']}}, upsert=True
+    )
+    end = time.time()
+    print(f"updating: {end-start}")
     
 def initialize():
     _ = mydb.adc_peak.insert_one({f'{t}' : points['adc_peak']})    
@@ -54,7 +59,7 @@ if __name__ == "__main__":
     initialize()
     
     while True:
-                
+        x = input('Enter the number of events per second you would like to have: ')     
         break
     
     
