@@ -29,8 +29,8 @@ def send(host: str = HOST, port: int = PORT):
         if AUTH_KID and AUTH_D and AUTH_X and AUTH_Y:
             sys.stdout.write(f'Ingestion using credentials\n')
             auth = ( AUTH_KID, AUTH_D, AUTH_X, AUTH_Y )
-        with Sender(host, port, auth=auth, tls=TLS) as sender:
-        # with Sender.from_conf(CONF) as sender:
+        # with Sender(host, port, auth=auth, tls=TLS) as sender:
+        with Sender.from_conf(CONF) as sender:
             for it in range(ITER):
                 # x = input('This is a stopping point: ')
                 for i in range(BATCH):
@@ -56,3 +56,9 @@ def send(host: str = HOST, port: int = PORT):
 if __name__ == '__main__':
     sys.stdout.write(f'Ingestion started. Connecting to {HOST} {PORT}\n')
     send()
+    
+    
+"""
+docker run --add-host=host.docker.internal:host-gateway -p 9000:9000 -p 9009:9009 -p 8812:8812 -p 9003:9003 questdb/questdb:latest
+https://github.com/questdb/questdb-quickstart?tab=readme-ov-file
+"""
