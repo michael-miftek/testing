@@ -34,7 +34,7 @@ def enter(total_runs):
     print(f"updating: {end-start}")
     
 def initialize():
-    _ = mydb.adc_peak.insert_one({f'{t}' : points['adc_peak']})    
+    _ = mydb.adc_peak.insert_many([{f'{t}' : points['adc_peak'][t]} for t in range(len(points['adc_peak']))])    
     _ = mydb.adc_area.insert_one({f'{t}' : points['adc_area']})    
     _ = mydb.adc_width.insert_one({f'{t}' : points['adc_width']})    
     _ = mydb.photon_total.insert_one({f'{t}' : points['count_total']})
