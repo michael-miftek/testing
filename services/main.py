@@ -263,7 +263,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def setup_zmq_socket(self):
         context = zmq.Context(1)
-        self.socket_worker = context.socket(zmq.SUB)
+        self.socket_worker = context.socket(zmq.DISH)
         #NOTE:  Set this up with the kvm setup they use
         # https://zguide.zeromq.org/docs/chapter5/#High-Speed-Subscribers-Black-Box-Pattern
         # self.socket = 
@@ -275,7 +275,7 @@ class Listener(QObject):
         super().__init__()
         self.twoD = twoD
         self.socket = socket
-        self.socket.bind('') #fill with ip and port
+        self.socket.bind('') #fill with ip and port use udp for RADIO DISH
         self.listening()
 
     def listening(self):
