@@ -51,6 +51,9 @@ class TwoDHeatMap(QtWidgets.QWidget):
         self.sample_size = 2500
         self.update_roi = []
 
+        self.x = []
+        self.y = []
+
         self.scatter = None
         self.scatterplot = None
         self.config = config
@@ -215,12 +218,13 @@ class TwoDHeatMap(QtWidgets.QWidget):
     def live_update_plot(self,x,y):
         # self.data_set = data
         #NOTE:  Can we have a different number of events in x and y if not then we only want this to 
-        #       save once    
-        self.total_events_x = len(x)
-        self.total_events_y = len(y)
+        #       save once
+        #This is used at this time for testing when x,y will be more what is being pulled from the database then we will return to that
+        self.x.append(x)
+        self.y.append(y)
     
-        self.H, self.xedges, self.yedges = np.histogram2d(self.pu.data['adc_peak'][0],self.pu.data['adc_peak'][6],bins=self.num_bins)
-        self.H, self.xedges, self.yedges = np.histogram2d(x,y,bins=self.num_bins)
+        self.H, self.xedges, self.yedges = np.histogram2d(self.x,self.y,bins=self.num_bins)
+        # self.H, self.xedges, self.yedges = np.histogram2d(x,y,bins=self.num_bins)
         self.scatterplot.updateImage(self.H)
 
 
@@ -292,14 +296,15 @@ class Listener(QObject):
                 self.currTime += (1/120)     #This is 120 Hz refresh
                 #This is still blocking
                 if poller.poll(timeout=1) == zmq.POLLIN:
-                    frames = self.socket.recv_multipart()
+                    # frames = self.socket.recv_multipart()
+                    frames = self.socket.recv_json()
                     if not frames:
                         continue
                     print(f"Recieved: {frames}")
                     #NOTE:  Add the x and y values you would like to use
                     # x = ?
                     # y = ?
-                    # self.twoD.live_update_plot(x, y)
+                    # self.twoD.live_update_plot(x,y)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
