@@ -19,7 +19,7 @@ from math import ceil
 from color_maps import colormaps
 
 class TwoDHeatMap(QtWidgets.QWidget):
-    def __init__(self, spot, config):
+    def __init__(self, config):
         super().__init__()
 
         self.total_events_x = 0
@@ -53,7 +53,6 @@ class TwoDHeatMap(QtWidgets.QWidget):
 
         self.scatter = None
         self.scatterplot = None
-        self.spot = spot
         self.config = config
 
         self.view_setup()
@@ -88,7 +87,6 @@ class TwoDHeatMap(QtWidgets.QWidget):
     def image_setup(self):
         overalllayout = QVBoxLayout(self)
         overalllayout.addWidget(self.scatter)
-        overalllayout.addWidget(self.stats)
 
         self.setLayout(overalllayout)
 
@@ -237,10 +235,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def __init__(self, *args, **kwargs):
-        pass
+        super().__init__()
         self.port = None
         self.socket = None
-        self.twoD = TwoDHeatMap()
+        self.twoD = TwoDHeatMap(None)
 
         self.setup_zmq_socket()
         self.thread_setup()
@@ -253,40 +251,55 @@ class MainWindow(QtWidgets.QMainWindow):
         #NOTE:  Don't think we need to make this part of the class because a QThread will close on its own when the GUI shuts down
         self.listener_worker = Listener(self.twoD, self.socket_worker)
         self.listener_thread = QThread()
+        print("Moving to thread")
         self.listener_worker.moveToThread(self.listener_thread)
-
+        self.listener_thread.started.connect(self.listener_worker.listening)
+        self.listener_thread.start()
 
     def setup_zmq_socket(self):
-        context = zmq.Context(1)
+        context = zmq.Context()
         self.socket_worker = context.socket(zmq.DISH)
         #NOTE:  Set this up with the kvm setup they use
         # https://zguide.zeromq.org/docs/chapter5/#High-Speed-Subscribers-Black-Box-Pattern
-        # self.socket = 
-        # pass
+        self.socket_worker.bind('udp://*:9005')
 
+    def closeEvent(self, event):
+        print("Shutting down thread")
+        self.listener_thread.quit()
+        sys.exit(0)
 
 class Listener(QObject):
     def __init__(self, twoD, socket):
         super().__init__()
         self.twoD = twoD
         self.socket = socket
-        self.socket.bind('udp://localhost:9005') #fill with ip and port use udp for RADIO DISH
-        self.listening()
+        self.currTime = time.time()
+        self.socket_setup()
+
+    def socket_setup(self):
+        #NOTE:  For a radio dish the DISH side is expected to join a "group" that is denoted by a 
+        #       tag, the radio side also send the tag as the beginning part of the message. Unsure 
+        #       if at this time this is fully required? It can be seen as a saftey feature
+        tag = ""
+        # self.socket.join(tag)
 
     def listening(self):
+        poller = zmq.Poller()
+        poller.register(self.socket, zmq.POLLIN)
         while True:
-
             #NOTE:  Do this on some freq and dont let it hold and wait for new information
-            if currTime >= time.time():
-                currTime += (1/120)     #This is 120 Hz refresh
-                frames = self.socket.recv_multipart()
-                if not frames:
-                    continue
-                print(f"Recieved: {frames}")
-                #NOTE:  Add the x and y values you would like to use
-                # x = ?
-                # y = ?
-                # self.twoD.live_update_plot(x, y)
+            if self.currTime <= time.time():
+                self.currTime += (1/120)     #This is 120 Hz refresh
+                #This is still blocking
+                if poller.poll(timeout=1) == zmq.POLLIN:
+                    frames = self.socket.recv_multipart()
+                    if not frames:
+                        continue
+                    print(f"Recieved: {frames}")
+                    #NOTE:  Add the x and y values you would like to use
+                    # x = ?
+                    # y = ?
+                    # self.twoD.live_update_plot(x, y)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
