@@ -1,5 +1,6 @@
 import sys
 import os
+import time
 
 from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtWidgets import QVBoxLayout, QGroupBox, QMainWindow, QApplication
@@ -58,18 +59,12 @@ class TwoDHeatMap(QtWidgets.QWidget):
         self.view_setup()
         self.image_setup()
         self.config_update(None)
-        self.port_bind()
         
         #-------- Right Click Menu --------#
         self.scatter.setMenuEnabled(False)
         self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.setup_menu)
         #-------- Right Click Menu --------#
-    
-    def port_bind(self):
-        self.context_zmq = zmq.Context(1)
-        self.context_zmq.socket(zmq.DISH)
-        .bind(f'tcp://localhost:{self.port}')
 
     def config_update(self, config):
         if self.config is None:
@@ -251,7 +246,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.thread_setup()
 
         #   Setup the view on the main window
-        self.setCentralWidget()
+        self.setCentralWidget(self.twoD)
 
     #NOTE:  This will setup the thread that will run and collect all information and will in turn call live update plot
     def thread_setup(self):
@@ -275,18 +270,23 @@ class Listener(QObject):
         super().__init__()
         self.twoD = twoD
         self.socket = socket
-        self.socket.bind('') #fill with ip and port use udp for RADIO DISH
+        self.socket.bind('udp://localhost:9005') #fill with ip and port use udp for RADIO DISH
         self.listening()
 
     def listening(self):
         while True:
 
             #NOTE:  Do this on some freq and dont let it hold and wait for new information
-            frames = self.socket.recv_multipart()
-            if not frames:
-                continue
-
-
+            if currTime >= time.time():
+                currTime += (1/120)     #This is 120 Hz refresh
+                frames = self.socket.recv_multipart()
+                if not frames:
+                    continue
+                print(f"Recieved: {frames}")
+                #NOTE:  Add the x and y values you would like to use
+                # x = ?
+                # y = ?
+                # self.twoD.live_update_plot(x, y)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
