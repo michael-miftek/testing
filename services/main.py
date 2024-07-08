@@ -145,74 +145,6 @@ class TwoDHeatMap(QtWidgets.QWidget):
         """
         self.num_bins = binsIn
         # self.live_update_plot(self.data_set)
-    
-    def gate_changed(self):
-        """!
-        This method is connected to the region of the gate being changed, and updates the position
-        of the of the gate
-
-        Assigns:
-            roi_shape:  (QPainterPath) This is the path of points that make up the gate
-
-        Inputs: None
-        Outputs: None
-        """
-        for i in range(self.num_roi):
-            #NOTE:  This update in the line below allows the program to update for all gates that
-            #       have been moved instead of all gates all the time, also the signal was changed
-            #       from changed to changedfinished which also means that the roi path update is
-            #       not getting called hundreds of times a second. This should be the final piece of
-            #       the slow down
-            if not self.update_roi[i]: 
-                continue
-            ##  Adding a work around for using shape method there is an isue where it does not 
-            #   update with the current position so the stats are only ever around where it was 
-            #   originally created regardless of where it has been moved to
-            
-            #   First we setup the QPainterPath to use the contains method later, but then the
-            #   position and the height and width will also need to be grabbed and added to which
-            #   ever functin we need to use.
-            #   Ellipse and circle  -> addEllipse
-            #   Rect                -> addRect
-            #   Beacuse we are now working with a 2d histo we have to account for everything being 
-            #   transposed
-            self.update_roi[i] = False
-            path = QtGui.QPainterPath()
-            x,y = self.roi[i].pos()
-            w,h = self.roi[i].size()
-
-            w *= self.xstep
-            h *= self.ystep
-            diffx = x - int(x)
-            diffy = y - int(y)
-            x = self.xedges[int(x)] + (diffx * self.xstep)
-            y = self.yedges[int(y)] + (diffy * self.ystep)
-
-            # print(type(self.roi[i]))
-            if(isinstance(self.roi[i], ROI.EllipseROI)):
-                path.addEllipse(x,y,w,h)
-            elif(isinstance(self.roi[i], ROI.RectROI)):
-                path.addRect(x,y,w,h)
-
-            self.roi_shape[i] = path  
-    
-    def safe_divide(self, a, b):
-        """!
-        This method is a safe divide to prevent and divisons by 0, this prevents warning outputs
-
-        Assigns: None
-
-        Inputs:  
-            A:              (float) This is an input number that is the numerator
-            B:              (float) This is an input number that is the denominator
-        Outputs: 
-            0 or divison:   (float) This is the output either returns a float or if it is a division
-                            by 0 it returns 0
-        """
-        if np.isclose(b, 0):
-            return 0.
-        else:
-            return a/b
         
     # def live_update_plot(self):
     def live_update_plot(self,x,y):
@@ -243,17 +175,56 @@ class MainWindow(QtWidgets.QMainWindow):
         self.port = None
         self.socket = None
         self.twoD = TwoDHeatMap(None)
+        self.freqs = [15, 30, 60, 120]
 
         self.setup_zmq_socket()
         self.thread_setup()
 
         #   Setup the view on the main window
-        self.setCentralWidget(self.twoD)
+        self.view_setup()
 
-    #NOTE:  This will setup the thread that will run and collect all information and will in turn call live update plot
+    def view_setup(self):
+        mainWidget = QtWidgets.QWidget()
+        full_layout = QtWidgets.QHBoxLayout()
+        Vbox = QtWidgets.QVBoxLayout()
+
+        self.feat1 = QtWidgets.QComboBox()
+        self.feat2 = QtWidgets.QComboBox()
+        for i in range(42):
+            self.feat1.addItem(f"Channel {i}")
+            self.feat2.addItem(f"Channel {i}")
+        self.feat1.currentIndexChanged.connect(self.change_channels)
+        self.feat2.currentIndexChanged.connect(self.change_channels)
+
+        self.event_per_second = QtWidgets.QLabel()
+        self.event_per_second.setText("Test")
+        
+        self.readFreq = QtWidgets.QComboBox()
+        for i in self.freqs:
+            self.readFreq.addItem(f"{i} Hz")
+        self.readFreq.currentIndexChanged.connect(self.change_feaq)
+
+        Vbox.addWidget(self.feat1)
+        Vbox.addWidget(self.feat2)
+        Vbox.addWidget(self.event_per_second)
+        Vbox.addWidget(self.readFreq)
+
+        full_layout.addWidget(self.twoD)
+        full_layout.addLayout(Vbox)
+
+        mainWidget.setLayout(full_layout)
+        self.setCentralWidget(mainWidget)
+        self.setWindowTitle("Service test")
+
+    def change_channels(self):
+        self.listener_worker.ch1 = self.feat1.currentIndex()
+        self.listener_worker.ch2 = self.feat2.currentIndex()
+
+    def change_feaq(self):
+        self.listener_worker.freq = self.freqs[self.readFreq.currentIndex()]
+
     def thread_setup(self):
-        #NOTE:  Don't think we need to make this part of the class because a QThread will close on its own when the GUI shuts down
-        self.listener_worker = Listener(self.twoD, self.socket_worker)
+        self.listener_worker = Listener(self.twoD, self.socket_worker, self)
         self.listener_thread = QThread()
         print("Moving to thread")
         self.listener_worker.moveToThread(self.listener_thread)
@@ -263,8 +234,6 @@ class MainWindow(QtWidgets.QMainWindow):
     def setup_zmq_socket(self):
         context = zmq.Context()
         self.socket_worker = context.socket(zmq.DISH)
-        #NOTE:  Set this up with the kvm setup they use
-        # https://zguide.zeromq.org/docs/chapter5/#High-Speed-Subscribers-Black-Box-Pattern
         self.socket_worker.bind('udp://*:9005')
 
     def closeEvent(self, event):
@@ -273,12 +242,16 @@ class MainWindow(QtWidgets.QMainWindow):
         sys.exit(0)
 
 class Listener(QObject):
-    def __init__(self, twoD, socket):
+    def __init__(self, twoD, socket, main):
         super().__init__()
         self.twoD = twoD
         self.socket = socket
+        self.main = main
         self.currTime = time.time()
         self.socket_setup()
+        self.ch1 = 1
+        self.ch2 = 1
+        self.freq = 15
 
     def socket_setup(self):
         #NOTE:  For a radio dish the DISH side is expected to join a "group" that is denoted by a 
@@ -293,7 +266,7 @@ class Listener(QObject):
         while True:
             #NOTE:  Do this on some freq and dont let it hold and wait for new information
             if self.currTime <= time.time():
-                self.currTime += (1/120)     #This is 120 Hz refresh
+                self.currTime += (1/self.freq)
                 #This is still blocking
                 if poller.poll(timeout=1) == zmq.POLLIN:
                     # frames = self.socket.recv_multipart()
@@ -301,10 +274,11 @@ class Listener(QObject):
                     if not frames:
                         continue
                     print(f"Recieved: {frames}")
-                    #NOTE:  Add the x and y values you would like to use
+                    #NOTE:  Add the x and y values you would like to use these will be based on ch1 and ch2
                     # x = ?
                     # y = ?
                     # self.twoD.live_update_plot(x,y)
+                    self.main.event_per_second.setText(f"{0} Events per second")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
