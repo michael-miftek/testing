@@ -235,6 +235,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def setup_zmq_socket(self):
         context = zmq.Context()
         self.socket_worker = context.socket(zmq.DISH)
+        self.socket_worker.rcvtimeo = 5
         self.socket_worker.bind('udp://*:9005')
 
     def closeEvent(self, event):
@@ -258,8 +259,7 @@ class Listener(QObject):
         #NOTE:  For a radio dish the DISH side is expected to join a "group" that is denoted by a 
         #       tag, the radio side also send the tag as the beginning part of the message. Unsure 
         #       if at this time this is fully required? It can be seen as a saftey feature
-        tag = b"example"
-        self.socket.join(tag)
+        self.socket.join('grpahs')
 
     def listening(self):
         poller = zmq.Poller()
@@ -268,18 +268,34 @@ class Listener(QObject):
             #NOTE:  Do this on some freq and dont let it hold and wait for new information
             if self.currTime <= time.time():
                 self.currTime += (1/self.freq)
-                #This is still blocking
-                if poller.poll(timeout=1) == zmq.POLLIN:
-                    frames = self.socket.recv_multipart()
-                    # frames = self.socket.recv_json()
-                    if not frames:
-                        continue
-                    print(f"Recieved: {frames}")
-                    #NOTE:  Add the x and y values you would like to use these will be based on ch1 and ch2
-                    # x = ?
-                    # y = ?
-                    # self.twoD.live_update_plot(x,y)
-                    self.main.event_per_second.setText(f"{0} Events per second")
+                print("hi")
+                try:
+                    frames = self.socket.recv(copy=False)
+                except:
+                    continue
+                if not frames:
+                    print("no frames")
+                    continue
+                print(f"Recieved: {frames}")
+                #NOTE:  Add the x and y values you would like to use these will be based on ch1 and ch2
+                # x = ?
+                # y = ?
+                # self.twoD.live_update_plot(x,y)
+                self.main.event_per_second.setText(f"{0} Events per second")
+                # socks = dict(poller.poll(timeout=1))
+                # #This is still blocking
+                # if socks.get(self.socket) == zmq.POLLIN:
+                #     print("hi")
+                #     # frames = self.socket.recv_multipart()
+                #     frames = self.socket.recv_json()
+                #     if not frames:
+                #         continue
+                #     print(f"Recieved: {frames}")
+                #     #NOTE:  Add the x and y values you would like to use these will be based on ch1 and ch2
+                #     # x = ?
+                #     # y = ?
+                #     # self.twoD.live_update_plot(x,y)
+                #     self.main.event_per_second.setText(f"{0} Events per second")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
