@@ -152,11 +152,12 @@ class TwoDHeatMap(QtWidgets.QWidget):
         #NOTE:  Can we have a different number of events in x and y if not then we only want this to 
         #       save once
         #This is used at this time for testing when x,y will be more what is being pulled from the database then we will return to that
-        self.x.append(x)
-        self.y.append(y)
+        # self.x.append(x)
+        # self.y.append(y)
     
-        self.H, self.xedges, self.yedges = np.histogram2d(self.x,self.y,bins=self.num_bins)
-        # self.H, self.xedges, self.yedges = np.histogram2d(x,y,bins=self.num_bins)
+        # self.H, self.xedges, self.yedges = np.histogram2d(self.x,self.y,bins=self.num_bins)
+        H, self.xedges, self.yedges = np.histogram2d(x,y,bins=self.num_bins, range=([0, 65535], [0, 65535]))
+        self.H += H
         self.scatterplot.updateImage(self.H)
 
 
@@ -248,7 +249,7 @@ class Listener(QObject):
         self.socket = socket
         self.main = main
         self.currTime = time.time()
-        self.socket_setup()
+        # self.socket_setup()
         self.ch1 = 1
         self.ch2 = 1
         self.freq = 15
@@ -257,8 +258,8 @@ class Listener(QObject):
         #NOTE:  For a radio dish the DISH side is expected to join a "group" that is denoted by a 
         #       tag, the radio side also send the tag as the beginning part of the message. Unsure 
         #       if at this time this is fully required? It can be seen as a saftey feature
-        tag = ""
-        # self.socket.join(tag)
+        tag = b"example"
+        self.socket.join(tag)
 
     def listening(self):
         poller = zmq.Poller()
@@ -269,8 +270,8 @@ class Listener(QObject):
                 self.currTime += (1/self.freq)
                 #This is still blocking
                 if poller.poll(timeout=1) == zmq.POLLIN:
-                    # frames = self.socket.recv_multipart()
-                    frames = self.socket.recv_json()
+                    frames = self.socket.recv_multipart()
+                    # frames = self.socket.recv_json()
                     if not frames:
                         continue
                     print(f"Recieved: {frames}")
