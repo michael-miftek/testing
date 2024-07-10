@@ -4,11 +4,13 @@ import time
 
 from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtWidgets import QVBoxLayout, QGroupBox, QMainWindow, QApplication
-from PyQt6.QtCore import QObject, QThread
+from PyQt6.QtCore import QObject, QThread, pyqtSignal
 import pyqtgraph as pg
 from pyqtgraph.graphicsItems import ROI
 
 import zmq
+import socket
+import pickle
 
 import scipy.stats as stats
 import numpy as np
@@ -19,6 +21,7 @@ from math import ceil
 from color_maps import colormaps
 
 class TwoDHeatMap(QtWidgets.QWidget):
+    update_image = pyqtSignal(object)
     def __init__(self, config):
         super().__init__()
 
@@ -44,6 +47,7 @@ class TwoDHeatMap(QtWidgets.QWidget):
         self.num_roi = 0
         
         self.num_bins = 256
+        self.initalH = 0
         self.H = 0
         self.xedges = 0
         self.yedges = 0
@@ -54,6 +58,7 @@ class TwoDHeatMap(QtWidgets.QWidget):
         self.x = []
         self.y = []
 
+        self.currTime = time.monotonic() + 5
         self.scatter = None
         self.scatterplot = None
         self.config = config
@@ -101,6 +106,8 @@ class TwoDHeatMap(QtWidgets.QWidget):
         self.scatter.showGrid(True, True)
         
         self.H, self.xedges, self.yedges = np.histogram2d([],[],bins=self.num_bins)
+        self.initalH = self.H
+        # print(self.initalH)
         self.scatterplot = pg.ImageItem(self.H, levels=[0, ceil(self.sample_size/self.num_bins)*2])
         color = colormaps().turbo[::-1]
         self.cmap = pg.ColorMap(pos=None, color=color)
@@ -152,13 +159,17 @@ class TwoDHeatMap(QtWidgets.QWidget):
         #NOTE:  Can we have a different number of events in x and y if not then we only want this to 
         #       save once
         #This is used at this time for testing when x,y will be more what is being pulled from the database then we will return to that
-        # self.x.append(x)
-        # self.y.append(y)
-    
-        # self.H, self.xedges, self.yedges = np.histogram2d(self.x,self.y,bins=self.num_bins)
-        H, self.xedges, self.yedges = np.histogram2d(x,y,bins=self.num_bins, range=([0, 65535], [0, 65535]))
-        self.H += H
-        self.scatterplot.updateImage(self.H)
+
+        if self.currTime <= time.monotonic():
+            self.currTime += 3
+            self.H, self.xedges, self.yedges = np.histogram2d([],[],bins=self.num_bins, range=([0, 65535], [0, 65535]))
+            self.update_image.emit(self.H)
+            # self.scatterplot.updateImage(self.H)
+        else:
+            H, self.xedges, self.yedges = np.histogram2d(x,y,bins=self.num_bins, range=([0, 65535], [0, 65535]))
+            self.H += H
+            self.update_image.emit(self.H)
+            # self.scatterplot.updateImage(self.H)
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -225,31 +236,50 @@ class MainWindow(QtWidgets.QMainWindow):
         self.listener_worker.freq = self.freqs[self.readFreq.currentIndex()]
 
     def thread_setup(self):
-        self.listener_worker = Listener(self.twoD, self.socket_worker, self)
+        self.listener_worker = Listener(self.socket_worker, self)
         self.listener_thread = QThread()
         print("Moving to thread")
         self.listener_worker.moveToThread(self.listener_thread)
         self.listener_thread.started.connect(self.listener_worker.listening)
         self.listener_thread.start()
 
+        self.plotter_worker = Plotter(self.twoD, self.listener_worker, self)
+        self.plotter_thread = QThread()
+        self.plotter_worker.moveToThread(self.plotter_thread)
+        self.plotter_thread.start()
+
+        self.updater_worker = Updatter(self.twoD)
+        self.updater_thread = QThread()
+        self.updater_worker.moveToThread(self.updater_thread)
+        self.updater_thread.start()
+
     def setup_zmq_socket(self):
-        context = zmq.Context()
-        self.socket_worker = context.socket(zmq.DISH)
-        self.socket_worker.rcvtimeo = 5
-        self.socket_worker.bind('udp://*:9005')
+        #NOTE:  Issue with zmq and udp and radio dish on pyzmq going to use the base socket library for now
+        # context = zmq.Context()
+        # self.socket_worker = context.socket(zmq.DISH)
+        # self.socket_worker.rcvtimeo = 5
+        # self.socket_worker.bind('udp://*:9005')
+        self.socket_worker = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        #NOTE:  Note sure if we should worr yabout socket options at this point
+        # self.socket_worker.setsockopt(socket.SOL_UDP, socket.IP_M)
+        self.socket_worker.bind(('127.0.0.1', 9005))
+        self.socket_worker.settimeout(5)
 
     def closeEvent(self, event):
         print("Shutting down thread")
         self.listener_thread.quit()
+        self.plotter_thread.quit()
+        self.updater_thread.quit()
         sys.exit(0)
 
 class Listener(QObject):
-    def __init__(self, twoD, socket, main):
+    plot = pyqtSignal(list)
+    def __init__(self, socket, main):
         super().__init__()
-        self.twoD = twoD
+        # self.twoD = twoD
         self.socket = socket
         self.main = main
-        self.currTime = time.time()
+        self.currTime = time.monotonic()
         # self.socket_setup()
         self.ch1 = 1
         self.ch2 = 1
@@ -259,43 +289,56 @@ class Listener(QObject):
         #NOTE:  For a radio dish the DISH side is expected to join a "group" that is denoted by a 
         #       tag, the radio side also send the tag as the beginning part of the message. Unsure 
         #       if at this time this is fully required? It can be seen as a saftey feature
-        self.socket.join('grpahs')
+        #       This feature is only enabled in DRAFT APIS for zmq which you can't easily setup on python will revist zmq for this when using c++
+        # self.socket.join('grpahs')
+        pass
 
     def listening(self):
-        poller = zmq.Poller()
-        poller.register(self.socket, zmq.POLLIN)
+        # poller = zmq.Poller()
+        # poller.register(self.socket, zmq.POLLIN)
         while True:
-            #NOTE:  Do this on some freq and dont let it hold and wait for new information
-            if self.currTime <= time.time():
-                self.currTime += (1/self.freq)
-                print("hi")
-                try:
-                    frames = self.socket.recv(copy=False)
-                except:
-                    continue
-                if not frames:
-                    print("no frames")
-                    continue
-                print(f"Recieved: {frames}")
-                #NOTE:  Add the x and y values you would like to use these will be based on ch1 and ch2
-                # x = ?
-                # y = ?
-                # self.twoD.live_update_plot(x,y)
-                self.main.event_per_second.setText(f"{0} Events per second")
-                # socks = dict(poller.poll(timeout=1))
-                # #This is still blocking
-                # if socks.get(self.socket) == zmq.POLLIN:
-                #     print("hi")
-                #     # frames = self.socket.recv_multipart()
-                #     frames = self.socket.recv_json()
-                #     if not frames:
-                #         continue
-                #     print(f"Recieved: {frames}")
-                #     #NOTE:  Add the x and y values you would like to use these will be based on ch1 and ch2
-                #     # x = ?
-                #     # y = ?
-                #     # self.twoD.live_update_plot(x,y)
-                #     self.main.event_per_second.setText(f"{0} Events per second")
+            try:
+                frames = self.socket.recv(65536)
+            except Exception as e:
+                print(e)
+                continue
+            output = pickle.loads(frames)
+            self.plot.emit(output)
+
+class Plotter(QObject):
+    def __init__(self, twoD, listener, main):
+        super().__init__()
+        self.twoD = twoD
+        self.listener = listener
+        self.main = main
+        self.currTime = time.monotonic()
+        self.x = []
+        self.y = []
+
+        self.listener.plot.connect(self.plot_update)
+
+    def plot_update(self, input):
+        # print(input)
+        self.x.extend(input[0])
+        self.y.extend(input[1])
+        if self.currTime <= time.monotonic():
+            self.currTime += (1/30)
+            self.twoD.live_update_plot(self.x, self.y)
+            self.x = []
+            self.y = []
+
+class Updatter(QObject):
+    def __init__(self, twoD):
+        super().__init__()
+        self.twoD = twoD
+
+        self.twoD.update_image.connect(self.update)
+
+    def update(self, object):
+        self.twoD.scatterplot.updateImage(object)
+
+
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

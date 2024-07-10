@@ -2,7 +2,10 @@ import psycopg
 import numpy as np
 import time
 import zmq
+import socket
 import json
+import pickle
+import random
 
 #NOTE:  This will need to be added to as other items are added to the database
 FEATURE_NAMES = ["PEAKHEIGHT"] #, "PEAKAREA", "PEAKWIDTH", "COUNTTOTAL"]
@@ -32,34 +35,34 @@ def read(cursor, col_num, feat):
 if __name__ == "__main__":
     db_connection = setup_db()
     db_cur = db_connection.cursor()
-    currTime = time.time()
+    currTime = time.monotonic()
     limit = 300
 
-    context = zmq.Context()
-    socket = context.socket(zmq.RADIO)
-    # socket.connect('udp://*:9005')
-    socket.connect('udp://127.0.0.1:9005')
-    tag = b"example"
+    #NOTE:  ZMQ issues prevent moving forward at this time in python switching to sockets
+    # context = zmq.Context()
+    # socket = context.socket(zmq.RADIO)
+    # # socket.connect('udp://*:9005')
+    # socket.connect('udp://127.0.0.1:9005')
+    # tag = b"example"
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.connect(('127.0.0.1', 9005))
+    sock.settimeout(5)
 
     while True:
-        if currTime <= time.time():
+        if currTime <= time.monotonic():
             currTime += (1/60)
             x = read(db_cur, 0, 0)
             y = read(db_cur, 6, 0)
-            ch1 = np.array(x[0][-10:])
-            ch2 = np.array(y[0][-10:])
-            # combine = np.array([ch1, ch2])
-            print(ch1)
-            print(ch2)
-            # print(json.dumps(combine))
-            # print(f"1: {ch1} 2: {ch2}")
-            # socket.send_multipart([tag, x[0][-300:], y[0][-300:]])
-            #NOTE:  This throws and error because of '[' need to only send a list of numbers with no brackets
+            rng = random.randint(0,65000)
+            ch1 = np.array(x[0][rng:rng+5000])
+            ch2 = np.array(y[0][rng:rng+5000])
+            # ch1 = np.array(x[0][-300:])
+            # ch2 = np.array(y[0][-300:])
+            # combine = [ch1,ch2]
+            data = pickle.dumps([ch1,ch2])
             try:
-                # socket.send_multipart([str(ch1).encode(), str(ch2).encode()])
-                socket.send_multipart(ch1)
-                # socket.send(json.dumps(combine), group='graphs')
+                sock.sendall(data)
             except Exception as e:
                 print(e)
                 break
-            # print(f"channel{y}: {len(x[0])}")
