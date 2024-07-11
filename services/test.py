@@ -10,7 +10,8 @@ import numpy as np
 if __name__ == "__main__":
     
     #We use bind on this side of life
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    # sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock = socket.socket(socket.AF_IRDA, socket.SOCK_STREAM, 0)
     sock.bind(('127.0.0.1', 5000))
     sock.settimeout(5)
     start = time.time() + 1

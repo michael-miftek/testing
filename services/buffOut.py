@@ -17,6 +17,7 @@ if __name__ == "__main__":
     
     #Use this same 3 lines and change the connect function to bind that will set up the receiving side
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    # sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(('127.0.0.1', 5000))
     sock.settimeout(5)
     
