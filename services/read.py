@@ -9,6 +9,7 @@ import random
 
 #NOTE:  This will need to be added to as other items are added to the database
 FEATURE_NAMES = ["PEAKHEIGHT"] #, "PEAKAREA", "PEAKWIDTH", "COUNTTOTAL"]
+TIMESTAMP = 0
 
 def setup_db():
     #NOTE:  These items might have to be changed depending on who is running the tests
@@ -27,6 +28,8 @@ def setup_db():
 #-----------------------------------------------------------------------#
 def read(cursor, col_num, feat):
     cursor.execute(f"SELECT ARRAY_AGG(ch{col_num}) FROM {FEATURE_NAMES[feat]}")
+    #NOTE:  Need to get latest time stamp from this as well probably need to change date to what it is in the db
+    # cursor.execute(f"SELECT ARRAY_AGG(ch{col_num}) FROM {FEATURE_NAMES[feat]} WHERE date > {TIMESTAMP}")
     return cursor.fetchone()
 #-----------------------------------------------------------------------#
 
