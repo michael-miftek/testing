@@ -160,16 +160,19 @@ class TwoDHeatMap(QtWidgets.QWidget):
         #       save once
         #This is used at this time for testing when x,y will be more what is being pulled from the database then we will return to that
 
-        if self.currTime <= time.monotonic():
-            self.currTime += 3
-            self.H, self.xedges, self.yedges = np.histogram2d([],[],bins=self.num_bins, range=([0, 65535], [0, 65535]))
-            self.update_image.emit(self.H)
+        # if self.currTime <= time.monotonic():
+        #     self.currTime += 3
+        #     self.H, self.xedges, self.yedges = np.histogram2d([],[],bins=self.num_bins, range=([0, 65535], [0, 65535]))
+        #     self.update_image.emit(self.H)
+        #     # self.scatterplot.updateImage(self.H)
+        # else:
+        #     H, self.xedges, self.yedges = np.histogram2d(x,y,bins=self.num_bins, range=([0, 65535], [0, 65535]))
+        #     self.H += H
+        #     self.update_image.emit(self.H)
             # self.scatterplot.updateImage(self.H)
-        else:
-            H, self.xedges, self.yedges = np.histogram2d(x,y,bins=self.num_bins, range=([0, 65535], [0, 65535]))
-            self.H += H
-            self.update_image.emit(self.H)
-            # self.scatterplot.updateImage(self.H)
+        H, self.xedges, self.yedges = np.histogram2d(x,y,bins=self.num_bins, range=([0, 65535], [0, 65535]))
+        self.H += H
+        self.update_image.emit(self.H)
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -188,12 +191,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.socket = None
         self.twoD = TwoDHeatMap(None)
         self.freqs = [15, 30, 60, 120]
+        self.count = 0
 
         self.setup_zmq_socket()
         self.thread_setup()
 
         #   Setup the view on the main window
         self.view_setup()
+        print("Main setup")
 
     def view_setup(self):
         mainWidget = QtWidgets.QWidget()
@@ -210,6 +215,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.event_per_second = QtWidgets.QLabel()
         self.event_per_second.setText("Test")
+        self.total_events = QtWidgets.QLabel()
+        self.total_events.setText("Test")
         
         self.readFreq = QtWidgets.QComboBox()
         for i in self.freqs:
@@ -219,6 +226,7 @@ class MainWindow(QtWidgets.QMainWindow):
         Vbox.addWidget(self.feat1)
         Vbox.addWidget(self.feat2)
         Vbox.addWidget(self.event_per_second)
+        Vbox.addWidget(self.total_events)
         Vbox.addWidget(self.readFreq)
 
         full_layout.addWidget(self.twoD)
@@ -253,6 +261,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.updater_worker.moveToThread(self.updater_thread)
         self.updater_thread.start()
 
+        self.rate_worker = Rate(self.count, self.twoD, self)
+        self.rate_thread = QThread()
+        self.rate_worker.moveToThread(self.rate_thread)
+        self.rate_thread.started.connect(self.rate_worker.run)
+        self.rate_thread.start()
+
     def setup_zmq_socket(self):
         #NOTE:  Issue with zmq and udp and radio dish on pyzmq going to use the base socket library for now
         # context = zmq.Context()
@@ -270,6 +284,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.listener_thread.quit()
         self.plotter_thread.quit()
         self.updater_thread.quit()
+        self.rate_thread.quit()
         sys.exit(0)
 
 class Listener(QObject):
@@ -281,9 +296,7 @@ class Listener(QObject):
         self.main = main
         self.currTime = time.monotonic()
         # self.socket_setup()
-        self.ch1 = 1
-        self.ch2 = 1
-        self.freq = 15
+        print("Listener setup")
 
     def socket_setup(self):
         #NOTE:  For a radio dish the DISH side is expected to join a "group" that is denoted by a 
@@ -316,13 +329,16 @@ class Plotter(QObject):
         self.y = []
 
         self.listener.plot.connect(self.plot_update)
+        print("Plotter setup")
 
     def plot_update(self, input):
         # print(input)
         self.x.extend(input[0])
         self.y.extend(input[1])
         if self.currTime <= time.monotonic():
+            self.main.count += len(self.x)
             self.currTime += (1/30)
+            #NOTE: emit signal here and then in the updater do everythign else should releive some stress
             self.twoD.live_update_plot(self.x, self.y)
             self.x = []
             self.y = []
@@ -333,12 +349,38 @@ class Updatter(QObject):
         self.twoD = twoD
 
         self.twoD.update_image.connect(self.update)
+        print("Updatter setup")
 
     def update(self, object):
         self.twoD.scatterplot.updateImage(object)
 
 
+class Rate(QObject):
+    def __init__(self, count, twoD, main):
+        super().__init__()
 
+        self.count = count
+        self.tot = 0
+        self.twoD = twoD
+        self.main = main
+        self.timeCurr = time.time() + 1
+        print("Rate setup")
+
+    def run(self):
+        while True:
+            if self.timeCurr <= time.time():
+                self.timeCurr += 1
+                
+                self.tot += self.main.count
+                self.main.event_per_second.setText(str(self.main.count))
+                self.main.total_events.setText(str(self.tot))
+                self.main.count = 0
+
+                if self.tot >= 10000000:
+                    print("Resetting total to 0 and reseting graph")
+                    self.tot = 0
+                    self.twoD.H = self.twoD.initialH
+                    
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
