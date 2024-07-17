@@ -172,7 +172,7 @@ class TwoDHeatMap(QtWidgets.QWidget):
             # self.scatterplot.updateImage(self.H)
         H, self.xedges, self.yedges = np.histogram2d(x,y,bins=self.num_bins, range=([0, 65535], [0, 65535]))
         self.H += H
-        self.update_image.emit(self.H)
+        self.scatterplot.updateImage(self.H)
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -256,7 +256,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plotter_worker.moveToThread(self.plotter_thread)
         self.plotter_thread.start()
 
-        self.updater_worker = Updatter(self.twoD)
+        self.updater_worker = Updatter(self.twoD, self.plotter_worker)
         self.updater_thread = QThread()
         self.updater_worker.moveToThread(self.updater_thread)
         self.updater_thread.start()
@@ -319,6 +319,7 @@ class Listener(QObject):
             self.plot.emit(output)
 
 class Plotter(QObject):
+    draw = pyqtSignal(object, object)
     def __init__(self, twoD, listener, main):
         super().__init__()
         self.twoD = twoD
@@ -339,20 +340,24 @@ class Plotter(QObject):
             self.main.count += len(self.x)
             self.currTime += (1/30)
             #NOTE: emit signal here and then in the updater do everythign else should releive some stress
-            self.twoD.live_update_plot(self.x, self.y)
+            self.draw.emit(self.x, self.y)
+            # self.twoD.live_update_plot(self.x, self.y)
             self.x = []
             self.y = []
 
 class Updatter(QObject):
-    def __init__(self, twoD):
+    def __init__(self, twoD, plotter):
         super().__init__()
         self.twoD = twoD
+        self.plotter = plotter
 
-        self.twoD.update_image.connect(self.update)
+        # self.twoD.update_image.connect(self.update)
+        self.plotter.draw.connect(self.update)
         print("Updatter setup")
 
-    def update(self, object):
-        self.twoD.scatterplot.updateImage(object)
+    def update(self, x, y):
+        self.twoD.live_update_plot(x, y)
+        # self.twoD.scatterplot.updateImage(object)
 
 
 class Rate(QObject):
