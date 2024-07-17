@@ -11,6 +11,9 @@ from pyqtgraph.graphicsItems import ROI
 import zmq
 import socket
 import pickle
+import random
+
+# import psycopg
 
 import scipy.stats as stats
 import numpy as np
@@ -172,7 +175,8 @@ class TwoDHeatMap(QtWidgets.QWidget):
             # self.scatterplot.updateImage(self.H)
         H, self.xedges, self.yedges = np.histogram2d(x,y,bins=self.num_bins, range=([0, 65535], [0, 65535]))
         self.H += H
-        self.scatterplot.updateImage(self.H)
+        self.update_image.emit(self.H)
+        # self.scatterplot.updateImage(self.H)
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -210,8 +214,8 @@ class MainWindow(QtWidgets.QMainWindow):
         for i in range(42):
             self.feat1.addItem(f"Channel {i}")
             self.feat2.addItem(f"Channel {i}")
-        self.feat1.currentIndexChanged.connect(self.change_channels)
-        self.feat2.currentIndexChanged.connect(self.change_channels)
+        # self.feat1.currentIndexChanged.connect(self.change_channels)
+        # self.feat2.currentIndexChanged.connect(self.change_channels)
 
         self.event_per_second = QtWidgets.QLabel()
         self.event_per_second.setText("Test")
@@ -221,7 +225,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.readFreq = QtWidgets.QComboBox()
         for i in self.freqs:
             self.readFreq.addItem(f"{i} Hz")
-        self.readFreq.currentIndexChanged.connect(self.change_feaq)
+        # self.readFreq.currentIndexChanged.connect(self.change_feaq)
 
         Vbox.addWidget(self.feat1)
         Vbox.addWidget(self.feat2)
@@ -236,16 +240,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(mainWidget)
         self.setWindowTitle("Service test")
 
-    def change_channels(self):
-        self.listener_worker.ch1 = self.feat1.currentIndex()
-        self.listener_worker.ch2 = self.feat2.currentIndex()
+    # def change_channels(self):
+    #     self.listener_worker.ch1 = self.feat1.currentIndex()
+    #     self.listener_worker.ch2 = self.feat2.currentIndex()
 
     def change_feaq(self):
         self.listener_worker.freq = self.freqs[self.readFreq.currentIndex()]
 
     def thread_setup(self):
         self.listener_worker = Listener(self.socket_worker, self.sock_con, self.sock_addr, self)
-        # self.listener_worker = Listener(self.socket_worker, self)
         self.listener_thread = QThread()
         print("Moving to thread")
         self.listener_worker.moveToThread(self.listener_thread)
@@ -257,7 +260,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plotter_worker.moveToThread(self.plotter_thread)
         self.plotter_thread.start()
 
-        self.updater_worker = Updatter(self.twoD, self.plotter_worker)
+        self.updater_worker = Updatter(self.twoD, self.plotter_worker, self.listener_worker, self)
         self.updater_thread = QThread()
         self.updater_worker.moveToThread(self.updater_thread)
         self.updater_thread.start()
@@ -267,6 +270,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.rate_worker.moveToThread(self.rate_thread)
         self.rate_thread.started.connect(self.rate_worker.run)
         self.rate_thread.start()
+
+        self.image_worker = Imager(self.twoD)
+        self.image_thread = QThread()
+        self.image_worker.moveToThread(self.image_thread)
+        # self.image_thread.started.connect(self.iamge_worker.run)
+        # self.iamge_thread.start()
 
     def setup_zmq_socket(self):
         # self.socket_worker = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -285,6 +294,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plotter_thread.quit()
         self.updater_thread.quit()
         self.rate_thread.quit()
+        self.image_thread.quit()
         sys.exit(0)
 
 class Listener(QObject):
@@ -299,7 +309,26 @@ class Listener(QObject):
         self.add = addr
         self.currTime = time.monotonic()
         # self.socket_setup()
+
+        self.ch1 = 0
+        self.ch2 = 0
+        self.size = 8000
+        # self.db_connection = self.setup_db()
+        # self.db_cur = self.db_connection.cursor()
         print("Listener setup")
+
+    # def setup_db():
+    # #NOTE:  These items might have to be changed depending on who is running the tests
+    #     db_params = {
+    #     "host": "127.0.0.1",
+    #     "dbname": "postgres",
+    #     "user": "postgres",
+    #     "password": "password",
+    #     "port": "5432"
+    #     }
+
+    #     db_conn = psycopg.connect(**db_params)
+    #     return db_conn
 
     def socket_setup(self):
         #NOTE:  For a radio dish the DISH side is expected to join a "group" that is denoted by a 
@@ -325,6 +354,18 @@ class Listener(QObject):
             output = pickle.loads(frames)
             self.plot.emit(output)
 
+    # def reading(self):
+    #     while True:
+    #     # if currTime <= time.monotonic():
+    #     #     currTime += (1/60)
+    #         x = read(db_cur, self.ch1, 0)
+    #         y = read(db_cur, self.ch2, 0)
+    #         rng = random.randint(0,62000)
+    #         ch1 = np.array(x[0][rng:rng+self.size])
+    #         ch2 = np.array(y[0][rng:rng+self.size])
+    #         self.plot.emit(ch1,ch2)
+    
+
 class Plotter(QObject):
     draw = pyqtSignal(object, object)
     def __init__(self, twoD, listener, main):
@@ -340,9 +381,12 @@ class Plotter(QObject):
         print("Plotter setup")
 
     def plot_update(self, input):
+    # def plot_update(self, x, y):
         # print(input)
         self.x.extend(input[0])
         self.y.extend(input[1])
+        # self.x.extend(x)
+        # self.y.extend(y)
         if self.currTime <= time.monotonic():
             self.main.count += len(self.x)
             self.currTime += (1/30)
@@ -353,18 +397,40 @@ class Plotter(QObject):
             self.y = []
 
 class Updatter(QObject):
-    def __init__(self, twoD, plotter):
+    def __init__(self, twoD, plotter, listener, main):
         super().__init__()
         self.twoD = twoD
         self.plotter = plotter
+        self.listener = listener
+
+        self.main = main
 
         # self.twoD.update_image.connect(self.update)
         self.plotter.draw.connect(self.update)
+        self.main.feat1.currentIndexChanged.connect(self.change_channels)
+        self.main.feat2.currentIndexChanged.connect(self.change_channels)
         print("Updatter setup")
+
+    def change_channels(self):
+        self.listener.ch1 = self.main.feat1.currentIndex()
+        self.listener.ch2 = self.main.feat2.currentIndex()
+
 
     def update(self, x, y):
         self.twoD.live_update_plot(x, y)
         # self.twoD.scatterplot.updateImage(object)
+
+class Imager(QObject):
+    def __init__(self, twoD):
+        super().__init__()
+        self.twoD = twoD
+
+        self.twoD.update_image.connect(self.update)
+    
+    def update(self, object):
+        self.twoD.scatterplot.updateImage(object)
+
+
 
 
 class Rate(QObject):
