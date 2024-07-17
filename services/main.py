@@ -268,16 +268,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.rate_thread.start()
 
     def setup_zmq_socket(self):
-        #NOTE:  Issue with zmq and udp and radio dish on pyzmq going to use the base socket library for now
-        # context = zmq.Context()
-        # self.socket_worker = context.socket(zmq.DISH)
-        # self.socket_worker.rcvtimeo = 5
-        # self.socket_worker.bind('udp://*:9005')
         self.socket_worker = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        #NOTE:  Note sure if we should worr yabout socket options at this point
-        # self.socket_worker.setsockopt(socket.SOL_UDP, socket.IP_M)
         self.socket_worker.bind(('127.0.0.1', 9005))
         self.socket_worker.settimeout(5)
+        
+        # self.socket_worker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # self.sock_worker.bind(('127.0.0.1', 5000))
+        # self.sock_worker.listen(1)
+        # self.sock_con, self.sock_addr = sock.accept()
+        # self.sock_worker.settimeout(5)
 
     def closeEvent(self, event):
         print("Shutting down thread")
@@ -312,9 +311,13 @@ class Listener(QObject):
         while True:
             try:
                 frames = self.socket.recv(65536)
+                # frames = self.con.recv(65536)
             except Exception as e:
                 print(e)
-                continue
+                if str(e) == 'timed out':
+                    continue
+                else:
+                    break
             output = pickle.loads(frames)
             self.plot.emit(output)
 

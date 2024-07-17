@@ -91,6 +91,7 @@ if __name__ == "__main__":
     rate_thread.started.connect(rate_worker.run)
     rate_thread.start()
 
+    # sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.connect(('127.0.0.1', 9005))
     sock.settimeout(5)
