@@ -13,7 +13,7 @@ import socket
 import pickle
 import random
 
-# import psycopg
+import psycopg
 
 import scipy.stats as stats
 import numpy as np
@@ -197,11 +197,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.freqs = [15, 30, 60, 120]
         self.count = 0
 
-        self.setup_zmq_socket()
-        self.thread_setup()
-
         #   Setup the view on the main window
         self.view_setup()
+
+        self.setup_zmq_socket()
+        self.thread_setup()
         print("Main setup")
 
     def view_setup(self):
@@ -248,11 +248,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.listener_worker.freq = self.freqs[self.readFreq.currentIndex()]
 
     def thread_setup(self):
-        self.listener_worker = Listener(self.socket_worker, self.sock_con, self.sock_addr, self)
+        self.listener_worker = Listener(self.socket_worker, self)
+        # self.listener_worker = Listener(self.socket_worker, self.sock_con, self.sock_addr, self)
         self.listener_thread = QThread()
         print("Moving to thread")
         self.listener_worker.moveToThread(self.listener_thread)
-        self.listener_thread.started.connect(self.listener_worker.listening)
+        # self.listener_thread.started.connect(self.listener_worker.listening)
+        self.listener_thread.started.connect(self.listener_worker.reading)
         self.listener_thread.start()
 
         self.plotter_worker = Plotter(self.twoD, self.listener_worker, self)
@@ -274,19 +276,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self.image_worker = Imager(self.twoD)
         self.image_thread = QThread()
         self.image_worker.moveToThread(self.image_thread)
-        # self.image_thread.started.connect(self.iamge_worker.run)
-        # self.iamge_thread.start()
 
     def setup_zmq_socket(self):
-        # self.socket_worker = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # self.socket_worker.bind(('127.0.0.1', 9005))
-        # self.socket_worker.settimeout(5)
-        
-        self.socket_worker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket_worker = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket_worker.bind(('127.0.0.1', 9005))
-        self.socket_worker.listen(1)
-        self.sock_con, self.sock_addr = self.socket_worker.accept()
         self.socket_worker.settimeout(5)
+
+        # self.socket_worker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # self.socket_worker.bind(('127.0.0.1', 9005))
+        # self.socket_worker.listen(1)
+        # self.sock_con, self.sock_addr = self.socket_worker.accept()
+        # self.socket_worker.settimeout(5)
 
     def closeEvent(self, event):
         print("Shutting down thread")
@@ -298,37 +298,40 @@ class MainWindow(QtWidgets.QMainWindow):
         sys.exit(0)
 
 class Listener(QObject):
-    plot = pyqtSignal(list)
-    def __init__(self, socket, con, addr, main):
+    # plot = pyqtSignal(object)
+    plot = pyqtSignal(object, object)
+    # def __init__(self, socket, con, addr, main):
+    def __init__(self, socket, main):
     # def __init__(self, socket, main):
         super().__init__()
         # self.twoD = twoD
         self.socket = socket
         self.main = main
-        self.con = con
-        self.add = addr
+        # self.con = con
+        # self.add = addr
         self.currTime = time.monotonic()
         # self.socket_setup()
 
         self.ch1 = 0
-        self.ch2 = 0
+        self.ch2 = 6
         self.size = 8000
-        # self.db_connection = self.setup_db()
-        # self.db_cur = self.db_connection.cursor()
+        self.features = ["PEAKHEIGHT"]
+        self.db_connection = self.setup_db()
+        self.db_cur = self.db_connection.cursor()
         print("Listener setup")
 
-    # def setup_db():
-    # #NOTE:  These items might have to be changed depending on who is running the tests
-    #     db_params = {
-    #     "host": "127.0.0.1",
-    #     "dbname": "postgres",
-    #     "user": "postgres",
-    #     "password": "password",
-    #     "port": "5432"
-    #     }
+    def setup_db(self):
+    #NOTE:  These items might have to be changed depending on who is running the tests
+        db_params = {
+        "host": "127.0.0.1",
+        "dbname": "postgres",
+        "user": "postgres",
+        "password": "password",
+        "port": "5432"
+        }
 
-    #     db_conn = psycopg.connect(**db_params)
-    #     return db_conn
+        db_conn = psycopg.connect(**db_params)
+        return db_conn
 
     def socket_setup(self):
         #NOTE:  For a radio dish the DISH side is expected to join a "group" that is denoted by a 
@@ -354,16 +357,18 @@ class Listener(QObject):
             output = pickle.loads(frames)
             self.plot.emit(output)
 
-    # def reading(self):
-    #     while True:
-    #     # if currTime <= time.monotonic():
-    #     #     currTime += (1/60)
-    #         x = read(db_cur, self.ch1, 0)
-    #         y = read(db_cur, self.ch2, 0)
-    #         rng = random.randint(0,62000)
-    #         ch1 = np.array(x[0][rng:rng+self.size])
-    #         ch2 = np.array(y[0][rng:rng+self.size])
-    #         self.plot.emit(ch1,ch2)
+    def reading(self):
+        while True:
+        # if currTime <= time.monotonic():
+        #     currTime += (1/60)
+            self.db_cur.execute(f"SELECT ARRAY_AGG(ch{self.ch1}) FROM {self.features[0]}")
+            x = self.db_cur.fetchone()
+            self.db_cur.execute(f"SELECT ARRAY_AGG(ch{self.ch2}) FROM {self.features[0]}")
+            y = self.db_cur.fetchone()
+            rng = random.randint(0,62000)
+            ch1 = np.array(x[0][rng:rng+self.size])
+            ch2 = np.array(y[0][rng:rng+self.size])
+            self.plot.emit(ch1,ch2)
     
 
 class Plotter(QObject):
@@ -380,13 +385,13 @@ class Plotter(QObject):
         self.listener.plot.connect(self.plot_update)
         print("Plotter setup")
 
-    def plot_update(self, input):
-    # def plot_update(self, x, y):
+    # def plot_update(self, input):
+    def plot_update(self, x, y):
         # print(input)
-        self.x.extend(input[0])
-        self.y.extend(input[1])
-        # self.x.extend(x)
-        # self.y.extend(y)
+        # self.x.extend(input[0])
+        # self.y.extend(input[1])
+        self.x.extend(x)
+        self.y.extend(y)
         if self.currTime <= time.monotonic():
             self.main.count += len(self.x)
             self.currTime += (1/30)
@@ -415,7 +420,6 @@ class Updatter(QObject):
         self.listener.ch1 = self.main.feat1.currentIndex()
         self.listener.ch2 = self.main.feat2.currentIndex()
 
-
     def update(self, x, y):
         self.twoD.live_update_plot(x, y)
         # self.twoD.scatterplot.updateImage(object)
@@ -429,9 +433,6 @@ class Imager(QObject):
     
     def update(self, object):
         self.twoD.scatterplot.updateImage(object)
-
-
-
 
 class Rate(QObject):
     def __init__(self, count, twoD, main):
