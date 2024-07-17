@@ -12,7 +12,7 @@ from PyQt6.QtCore import QThread, QObject
 
 
 COUNT = 0
-SIZE = 1000
+SIZE = 8000
 
 #NOTE:  This will need to be added to as other items are added to the database
 FEATURE_NAMES = ["PEAKHEIGHT"] #, "PEAKAREA", "PEAKWIDTH", "COUNTTOTAL"]
@@ -63,20 +63,17 @@ class Rate(QObject):
                 self.tot += COUNT
                 COUNT = 0
 
-                if self.tot >= 10000000:
-                    print(f"read size is increasing from {SIZE} to {SIZE+500}")
-                    if SIZE >= 5500:
-                        sys.exit()
-                    else:
-                        SIZE += 500
+                # if self.tot >= 10000000:
+                #     print(f"read size is increasing from {SIZE} to {SIZE+500}")
+                #     if SIZE >= 10500:
+                #         sys.exit()
+                #     else:
+                #         SIZE += 500
 
 if __name__ == "__main__":
     db_connection = setup_db()
     db_cur = db_connection.cursor()
     currTime = time.monotonic()
-    limit = 300
-    count = 0
-    size = 500
 
     #NOTE:  ZMQ issues prevent moving forward at this time in python switching to sockets
     # context = zmq.Context()
@@ -91,28 +88,30 @@ if __name__ == "__main__":
     rate_thread.started.connect(rate_worker.run)
     rate_thread.start()
 
-    # sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.connect(('127.0.0.1', 9005))
     sock.settimeout(5)
 
     while True:
-        if currTime <= time.monotonic():
-            currTime += (1/60)
-            x = read(db_cur, 0, 0)
-            y = read(db_cur, 6, 0)
-            rng = random.randint(0,64500)
-            ch1 = np.array(x[0][rng:rng+SIZE])
-            ch2 = np.array(y[0][rng:rng+SIZE])
-            # ch1 = np.array(x[0][-300:])
-            # ch2 = np.array(y[0][-300:])
-            # combine = [ch1,ch2]
-            data = pickle.dumps([ch1,ch2])
-            try:
-                sock.sendall(data)
-                COUNT+=SIZE
-            except Exception as e:
-                print(e)
-                break
+        # if currTime <= time.monotonic():
+        #     currTime += (1/60)
+        x = read(db_cur, 0, 0)
+        y = read(db_cur, 6, 0)
+        rng = random.randint(0,62000)
+        ch1 = np.array(x[0][rng:rng+SIZE])
+        ch2 = np.array(y[0][rng:rng+SIZE])
+        # ch1 = np.array(x[0][0:0+SIZE])
+        # ch2 = np.array(y[0][0:0+SIZE])
+        # ch1 = np.array(x[0][-300:])
+        # ch2 = np.array(y[0][-300:])
+        # combine = [ch1,ch2]
+        data = pickle.dumps([ch1,ch2])
+        try:
+            sock.sendall(data)
+            COUNT+=SIZE
+        except Exception as e:
+            print(e)
+            break
 
     rate_thread.quit()

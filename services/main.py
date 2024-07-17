@@ -244,7 +244,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.listener_worker.freq = self.freqs[self.readFreq.currentIndex()]
 
     def thread_setup(self):
-        self.listener_worker = Listener(self.socket_worker, self)
+        self.listener_worker = Listener(self.socket_worker, self.sock_con, self.sock_addr, self)
+        # self.listener_worker = Listener(self.socket_worker, self)
         self.listener_thread = QThread()
         print("Moving to thread")
         self.listener_worker.moveToThread(self.listener_thread)
@@ -268,15 +269,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.rate_thread.start()
 
     def setup_zmq_socket(self):
-        self.socket_worker = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket_worker.bind(('127.0.0.1', 9005))
-        self.socket_worker.settimeout(5)
+        # self.socket_worker = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # self.socket_worker.bind(('127.0.0.1', 9005))
+        # self.socket_worker.settimeout(5)
         
-        # self.socket_worker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # self.sock_worker.bind(('127.0.0.1', 5000))
-        # self.sock_worker.listen(1)
-        # self.sock_con, self.sock_addr = sock.accept()
-        # self.sock_worker.settimeout(5)
+        self.socket_worker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket_worker.bind(('127.0.0.1', 9005))
+        self.socket_worker.listen(1)
+        self.sock_con, self.sock_addr = self.socket_worker.accept()
+        self.socket_worker.settimeout(5)
 
     def closeEvent(self, event):
         print("Shutting down thread")
@@ -288,11 +289,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
 class Listener(QObject):
     plot = pyqtSignal(list)
-    def __init__(self, socket, main):
+    def __init__(self, socket, con, addr, main):
+    # def __init__(self, socket, main):
         super().__init__()
         # self.twoD = twoD
         self.socket = socket
         self.main = main
+        self.con = con
+        self.add = addr
         self.currTime = time.monotonic()
         # self.socket_setup()
         print("Listener setup")
@@ -310,8 +314,8 @@ class Listener(QObject):
         # poller.register(self.socket, zmq.POLLIN)
         while True:
             try:
-                frames = self.socket.recv(65536)
-                # frames = self.con.recv(65536)
+                # frames = self.socket.recv(65536)
+                frames = self.con.recv(65536)
             except Exception as e:
                 print(e)
                 if str(e) == 'timed out':
