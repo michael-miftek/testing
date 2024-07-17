@@ -248,12 +248,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.listener_worker.freq = self.freqs[self.readFreq.currentIndex()]
 
     def thread_setup(self):
+        #NOTE: Read from database
         self.listener_worker = Listener(self.socket_worker, self)
+        #NOTE: Read from socket
         # self.listener_worker = Listener(self.socket_worker, self.sock_con, self.sock_addr, self)
         self.listener_thread = QThread()
         print("Moving to thread")
         self.listener_worker.moveToThread(self.listener_thread)
+        #NOTE: Read from socker
         # self.listener_thread.started.connect(self.listener_worker.listening)
+        #NOTE: Read from database
         self.listener_thread.started.connect(self.listener_worker.reading)
         self.listener_thread.start()
 
@@ -278,10 +282,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.image_worker.moveToThread(self.image_thread)
 
     def setup_zmq_socket(self):
+        #NOTE:  UDP lines
         self.socket_worker = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket_worker.bind(('127.0.0.1', 9005))
         self.socket_worker.settimeout(5)
 
+        #NOTE:  TCP lines
         # self.socket_worker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # self.socket_worker.bind(('127.0.0.1', 9005))
         # self.socket_worker.listen(1)
@@ -298,26 +304,30 @@ class MainWindow(QtWidgets.QMainWindow):
         sys.exit(0)
 
 class Listener(QObject):
+    #NOTE:  Socket signal
     # plot = pyqtSignal(object)
+    #NOTE:  Database signal
     plot = pyqtSignal(object, object)
+    #NOTE:  Socket init
     # def __init__(self, socket, con, addr, main):
+    #NOTE:  Database init
     def __init__(self, socket, main):
-    # def __init__(self, socket, main):
         super().__init__()
-        # self.twoD = twoD
         self.socket = socket
         self.main = main
+        self.currTime = time.monotonic()
         # self.con = con
         # self.add = addr
-        self.currTime = time.monotonic()
         # self.socket_setup()
 
         self.ch1 = 0
         self.ch2 = 6
         self.size = 8000
+        #NOTE:  Comment 3 lines below if not running the read
         self.features = ["PEAKHEIGHT"]
         self.db_connection = self.setup_db()
         self.db_cur = self.db_connection.cursor()
+        
         print("Listener setup")
 
     def setup_db(self):
@@ -359,8 +369,6 @@ class Listener(QObject):
 
     def reading(self):
         while True:
-        # if currTime <= time.monotonic():
-        #     currTime += (1/60)
             self.db_cur.execute(f"SELECT ARRAY_AGG(ch{self.ch1}) FROM {self.features[0]}")
             x = self.db_cur.fetchone()
             self.db_cur.execute(f"SELECT ARRAY_AGG(ch{self.ch2}) FROM {self.features[0]}")
@@ -397,7 +405,6 @@ class Plotter(QObject):
             self.currTime += (1/30)
             #NOTE: emit signal here and then in the updater do everythign else should releive some stress
             self.draw.emit(self.x, self.y)
-            # self.twoD.live_update_plot(self.x, self.y)
             self.x = []
             self.y = []
 
@@ -410,7 +417,6 @@ class Updatter(QObject):
 
         self.main = main
 
-        # self.twoD.update_image.connect(self.update)
         self.plotter.draw.connect(self.update)
         self.main.feat1.currentIndexChanged.connect(self.change_channels)
         self.main.feat2.currentIndexChanged.connect(self.change_channels)
@@ -422,7 +428,6 @@ class Updatter(QObject):
 
     def update(self, x, y):
         self.twoD.live_update_plot(x, y)
-        # self.twoD.scatterplot.updateImage(object)
 
 class Imager(QObject):
     def __init__(self, twoD):
