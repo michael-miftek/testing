@@ -19,6 +19,16 @@ import scipy.stats as stats
 import numpy as np
 from math import ceil
 
+# opts = {
+#     'useOpenGL' : True, 
+#     'useCupy' : True, 
+#     'useNumba' : True
+# }
+opts = {
+    'useOpenGL' : True,
+    'useCupy' : True
+}
+pg.setConfigOptions(**opts)
 #NOTE:  These items are used currently the color maps will be needed but the table view is something 
 #       that can be added in post if wanted it works smoothly right now 
 from color_maps import colormaps
@@ -304,10 +314,7 @@ class MainWindow(QtWidgets.QMainWindow):
         sys.exit(0)
 
 class Listener(QObject):
-    #NOTE:  Socket signal
-    # plot = pyqtSignal(object)
-    #NOTE:  Database signal
-    plot = pyqtSignal(object, object)
+    plot = pyqtSignal(object)
     #NOTE:  Socket init
     # def __init__(self, socket, con, addr, main):
     #NOTE:  Database init
@@ -316,13 +323,14 @@ class Listener(QObject):
         self.socket = socket
         self.main = main
         self.currTime = time.monotonic()
+        #NOTE:  3 lines below are needed for TCP
         # self.con = con
         # self.add = addr
         # self.socket_setup()
 
         self.ch1 = 0
         self.ch2 = 6
-        self.size = 8000
+        self.size = 10000 #8000
         #NOTE:  Comment 3 lines below if not running the read
         self.features = ["PEAKHEIGHT"]
         self.db_connection = self.setup_db()
@@ -357,14 +365,15 @@ class Listener(QObject):
         while True:
             try:
                 # frames = self.socket.recv(65536)
-                frames = self.con.recv(65536)
+                # output = pickle.loads(self.socket.recv(80226))
+                output = pickle.loads(self.con.recv(80226))
             except Exception as e:
                 print(e)
                 if str(e) == 'timed out':
                     continue
                 else:
                     break
-            output = pickle.loads(frames)
+            # output = pickle.loads(frames)
             self.plot.emit(output)
 
     def reading(self):
@@ -373,10 +382,10 @@ class Listener(QObject):
             x = self.db_cur.fetchone()
             self.db_cur.execute(f"SELECT ARRAY_AGG(ch{self.ch2}) FROM {self.features[0]}")
             y = self.db_cur.fetchone()
-            rng = random.randint(0,62000)
+            rng = random.randint(0,59000)
             ch1 = np.array(x[0][rng:rng+self.size])
             ch2 = np.array(y[0][rng:rng+self.size])
-            self.plot.emit(ch1,ch2)
+            self.plot.emit([ch1,ch2])
     
 
 class Plotter(QObject):
@@ -393,16 +402,14 @@ class Plotter(QObject):
         self.listener.plot.connect(self.plot_update)
         print("Plotter setup")
 
-    # def plot_update(self, input):
-    def plot_update(self, x, y):
+    def plot_update(self, input):
+    # def plot_update(self, x, y):
         # print(input)
-        # self.x.extend(input[0])
-        # self.y.extend(input[1])
-        self.x.extend(x)
-        self.y.extend(y)
+        self.x.extend(input[0])
+        self.y.extend(input[1])
         if self.currTime <= time.monotonic():
             self.main.count += len(self.x)
-            self.currTime += (1/30)
+            self.currTime += (1/5)
             #NOTE: emit signal here and then in the updater do everythign else should releive some stress
             self.draw.emit(self.x, self.y)
             self.x = []

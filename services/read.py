@@ -9,10 +9,16 @@ import random
 import os
 import sys
 from PyQt6.QtCore import QThread, QObject
+import pyqtgraph as pg
 
+# opts = {
+#     'useOpenGL' : True,
+#     'useCupy' : True
+# }
+# pg.setConfigOptions(**opts)
 
 COUNT = 0
-SIZE = 8000
+SIZE = 10000
 
 #NOTE:  This will need to be added to as other items are added to the database
 FEATURE_NAMES = ["PEAKHEIGHT"] #, "PEAKAREA", "PEAKWIDTH", "COUNTTOTAL"]
@@ -100,7 +106,7 @@ if __name__ == "__main__":
         #     currTime += (1/60)
         x = read(db_cur, 0, 0)
         y = read(db_cur, 6, 0)
-        rng = random.randint(0,62000)
+        rng = random.randint(0,59500)
         ch1 = np.array(x[0][rng:rng+SIZE])
         ch2 = np.array(y[0][rng:rng+SIZE])
         # ch1 = np.array(x[0][0:0+SIZE])
@@ -109,6 +115,7 @@ if __name__ == "__main__":
         # ch2 = np.array(y[0][-300:])
         # combine = [ch1,ch2]
         data = pickle.dumps([ch1,ch2])
+        # print(data.__sizeof__())
         try:
             sock.sendall(data)
             COUNT+=SIZE
