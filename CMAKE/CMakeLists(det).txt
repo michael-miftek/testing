@@ -1,0 +1,80 @@
+set(FTDIR ../bin/ftd3xx)
+set(SLSDIR ../bin/slsusb)
+
+if(DEFINED LIBCYTOSPECTRUM_BUILD_SEL)
+    message("LIBCYTOSPECTRUM_BUILD_SEL is defined")
+    message(${LIBCYTOSPECTRUM_BUILD_SEL})
+elseif(DEFINED PYLIB AND DEFINED LIB AND DEFINED CLI )
+    message("LIBCYTOSPECTRUM_BUILD_SEL is not defined. PYLIB, LIB, and CLI are. Defaulting to max build out")
+    set(LIBCYTOSPECTRUM_BUILD_SEL PYLIB LIB CLI)
+else()
+    message("Nothing is predefined")
+endif()
+
+if("PYLIB" IN_LIST LIBCYTOSPECTRUM_BUILD_SEL)
+    add_subdirectory(pybind11)
+    pybind11_add_module(pycytospectrum
+        pycytospectrum.cpp
+        instrument.cpp
+        usb_ftdi.cpp
+        event.cpp
+        collator.cpp
+    )
+    target_include_directories(pycytospectrum PRIVATE ${FTDIR}  ${SLSDIR})
+    target_link_directories(pycytospectrum PRIVATE ${FTDIR}/x64  ${SLSDIR})
+#    target_link_libraries(pycytospectrum PRIVATE FTD3XX slsusb)
+    target_include_directories(pycytospectrum PRIVATE .)
+else()
+    add_subdirectory(pybind11)
+    pybind11_add_module(pycytospectrum
+        pycytospectrum.cpp
+        instrument.cpp
+        usb_ftdi.cpp
+        event.cpp
+        collator.cpp
+    )
+    target_include_directories(pycytospectrum PRIVATE ${FTDIR}  ${SLSDIR})
+    target_link_directories(pycytospectrum PRIVATE ${FTDIR}/x64  ${SLSDIR})
+    target_include_directories(pycytospectrum PRIVATE .)
+endif()
+
+##Not sure if this is actually used because in the main CMake we don't use add library
+if(DEFINED LIB AND "LIB" IN_LIST LIBCYTOSPECTRUM_BUILD_SEL)
+    add_library(${PROJECT_NAME} STATIC
+       instrument.cpp
+       usb_ftdi.cpp
+       event.cpp
+       collator.cpp
+    )
+    target_include_directories(${PROJECT_NAME} PRIVATE ${FTDIR} ${SLSDIR})
+    target_link_directories(${PROJECT_NAME} PRIVATE ${FTDIR}/x64 ${SLSDIR})
+    target_link_libraries(${PROJECT_NAME} PRIVATE FTD3XX slsusb)
+    target_include_directories(${PROJECT_NAME} PRIVATE .)
+    set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER cytospectrum.h)
+endif()
+
+#if(DEFINED CLI AND "CLI" IN_LIST LIBCYTOSPECTRUM_BUILD_SEL)
+    add_executable(${PROJECT_NAME}_cli
+        instrument.cpp
+        usb_ftdi.cpp
+        event.cpp
+        main.cpp
+        collator.cpp
+    )
+    target_include_directories(${PROJECT_NAME}_cli PRIVATE ${FTDIR}  ${SLSDIR})
+    target_link_directories(${PROJECT_NAME}_cli PRIVATE ${FTDIR}/x64  ${SLSDIR})
+    target_link_libraries(${PROJECT_NAME}_cli PRIVATE FTD3XX slsusb)
+    target_include_directories(${PROJECT_NAME}_cli PRIVATE .)
+else()
+    add_executable(${PROJECT_NAME}_cli
+        instrument.cpp
+        usb_ftdi.cpp
+        event.cpp
+        main.cpp
+        collator.cpp
+    )
+    target_include_directories(${PROJECT_NAME}_cli PRIVATE ${FTDIR}  ${SLSDIR})
+    target_link_directories(${PROJECT_NAME}_cli PRIVATE ${FTDIR}/x64  ${SLSDIR})
+    target_link_libraries(${PROJECT_NAME}_cli PRIVATE FTD3XX slsusb)
+    target_include_directories(${PROJECT_NAME}_cli PRIVATE .)
+#endif()
