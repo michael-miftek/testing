@@ -1,3 +1,9 @@
+cmake_minimum_required(VERSION 3.26)
+
+project(cytospectrum VERSION 0.1 LANGUAGES CXX DESCRIPTION "Low-level instrument control library")
+
+set(CMAKE_CXX_STANDARD 20)
+
 set(FTDIR ../bin/ftd3xx)
 set(SLSDIR ../bin/slsusb)
 
