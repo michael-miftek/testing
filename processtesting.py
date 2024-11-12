@@ -27,11 +27,11 @@ def f(d, l):
     d[1] = '1'
     d['2'] = 2
     d[0.25] = None
-    for t in range(50):
+    for t in range(100):
         d[1] += '1'
         d['2'] += 1
         d[0.25] = None
-        time.sleep(.5)
+        time.sleep(.1)
     d[3] = 5
     l.reverse()
 
@@ -42,9 +42,9 @@ if __name__ == '__main__':
 
         p = Process(target=f, args=(d, l))
         p.start()
-        for i in range(10):
+        for i in range(100):
             print("hi")
-            time.sleep(1)
+            time.sleep(0.1)
             print(d)
         
         p.join()
