@@ -40,14 +40,14 @@ if __name__ == '__main__':
         d = manager.dict()
         l = manager.list(range(10))
 
-        p = Process(target=f, args=(d, l))
-        p.start()
-        for i in range(100):
-            print("hi")
-            time.sleep(0.1)
-            print(d)
-        
-        p.join()
-
+    p = Process(target=f, args=(d, l))
+    p.start()
+    for i in range(100):
+        print("hi")
+        time.sleep(0.1)
         print(d)
-        print(l)
+    
+    p.join()
+
+    print(d)
+    print(l)
