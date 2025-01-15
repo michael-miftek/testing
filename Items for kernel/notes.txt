@@ -1,0 +1,62 @@
+python -m pip install snakeviz
+snakeviz main.prof
+import cProfile
+import pstats
+# with cProfile.Profile() as pr:
+        
+        #     self.plot_dicts = plot_dicts
+        #     self.gate_dicts = gate_dicts
+        #     self.waveform_dicts = waveform_dicts
+        #     self.stats_dicts = stats_dicts
+        #     self.fluidics_dicts = fluidics_dicts
+        #     self.version_dicts = version_dicts
+        #     self.status_dicts = status_dicts
+        #     self.event_dicts = event_dicts
+        #     self.frame_num_out = frame_num_out
+        #     self.trigger_channel = trigger_channel
+        #     self.num_pulses = num_pulses
+        #     self.on_time = on_time
+        #     self.off_time = off_time
+        #     self.offset_time = offset_time
+        #     self.correction = correction
+        #     self.polarity = polarity
+        #     self.auto_thresh = auto_thresh
+        #     self.plot_config = plot_config
+        #     self.gate_config = gate_config
+        #     self.fluidics_config = fluidics_config
+        #     self.mainboard_config = mainboard_config
+        #     self.autotrigger_config = autotrigger_config
+            
+        #     self.config_file = None
+        #     self.kernel = Kernel(self)
+        #     self.kernel_thread = None
+        #     self.mainboard_port = None
+            
+        #     #NOTE:  Timers, the numerical value is the Hz of the timer
+        #     self.timer = QTimer()
+            
+        #     #TODO:  Add in a launcher that will return a binary flag of size uint8 that tells the kernel which 
+        #     # service_flag, config_file = self.launcher()
+
+        #     # service_flag = 0b00000001   #Turn on just controller service
+        #     # service_flag = 0b00000011   #Turn on controller and mainboard services
+        #     # service_flag = 0b00000111   #Turn on controller, mainboard, and autotrigger services
+        #     # service_flag = 0b00001111   #Turn on controller, mainboard, autotrigger and fluidics services
+        #     # service_flag = 0b00011111   #Turn on controller, mainboard, autotrigger, fluidics, and plots services
+        #     service_flag = 0b00111011   #Turn on all services controller, mainboard, fluidics, plots, and gates services - autotrigger will be off until we can send just trigger updates to hardware
+        #     config_file = None
+
+        #     if self.setup_kernel(service_flag, config_file) == False:
+        #         self.clean_up()
+
+        #     self.setup_views()
+        #     self.setup_layout()
+            
+        #     if self.timer is not None:
+        #         self.timer.setTimerType(Qt.TimerType.CoarseTimer)
+        #         self.timer.start(int(1000/60))
+        
+        # stats = pstats.Stats(pr)
+        # stats.sort_stats(pstats.SortKey.TIME)
+        # # stats.print_stats()
+        # stats.dump_stats("main.prof")
